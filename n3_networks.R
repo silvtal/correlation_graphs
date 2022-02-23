@@ -44,6 +44,9 @@ library("gridGraphics")
 library("grid")
 library("ggplotify")
 library("ggpubr")
+library("patchwork")
+library("ggtext")
+library("ggrepel")
 
 simul_folder = "./gamma_simul_correlations"
 real_folder  = "./gamma_real_correlations"
@@ -51,10 +54,13 @@ outputdir = "./gamma_model_GRAPHS"
 
 taxaf = "../OTU_data/all_transfers_table_glc.txt"
 taxa<-get_abundance_and_tax_from_table(taxaf)[[2]] 
+pcgcode <- pcgcodemaker(taxa, f_ = T); names(pcgcode) <- rownames(taxa)
 
 m_inic = paste0("X",1:12) # irá probando· Si no hay para esa muestra inicial, 
                           # se dará cuenta. Lo mismo para las réplicas           # fixed 11 oct 
 mypval = 0.025
+
+graph_list <- list()
 # For each m_inic
 # ==============================================================================
 for (m in m_inic) {
@@ -119,10 +125,10 @@ for (m in m_inic) {
       df=unflatten(real_corrs) #functions_for_neutral_modelling.R
       c_scale = c('#7F0000', 'red', '#FF7F00', 'yellow', 'white',
                   'cyan', '#007FFF', 'blue', '#00007F')%>% rev
-      col2 = colorRampPalette(c_scale)
+      col_ramp = colorRampPalette(c_scale)
       # library(RColorBrewer); coln = brewer.pal(n = 10, name = 'PRGn')
       corrplot(corr = df%>%as.matrix(), type = 'lower', order = 'hclust', tl.col = 'black', 
-               cl.ratio = 0.2, tl.srt = 45, col = col2(10), bg = "lightgrey",
+               cl.ratio = 0.2, tl.srt = 45, col = col_ramp(10), bg = "lightgrey",
                sig.level = mypval, p.mat = unflatten(real_corrs,values="pvalue")%>%as.matrix) # strike by p val
       grid.echo()
       plot2 <- grid.grab() %>% as.grob
@@ -156,10 +162,10 @@ for (m in m_inic) {
       ## Convert to graph
       ## ===========================================================================
       # filter by pval
-      real_corrs <- real_corrs[real_corrs["pvalue"]<mypval,]
+      real_corrs <- real_corrs[real_corrs["pvalue"] < mypval,]
       
       # remove 0 values 
-      real_corrs <- real_corrs[real_corrs["weight"]!=0,]
+      real_corrs <- real_corrs[real_corrs["weight"] != 0,]
       
       # rename real_corrs (for better plotting afterwards)
       real_corrs[[1]] <- taxa[real_corrs[[1]],] %>% renamer(width=6) %>% gsub(pattern="\\.\\d",replacement = "") 
@@ -168,102 +174,184 @@ for (m in m_inic) {
       # create graph
       gr<-igraph::graph_from_data_frame(real_corrs%>%as.matrix, directed = F) 
       
-      # color by sign AND weight. (fixed 10 nov para que acepte neg values)
-      col1 <- colorRamp(c_scale[6:9])
-      col2 <- colorRamp(rev(c_scale[6:9]))
-      # E(gr)$colores = apply(col1(E(gr)$weight), 1, function(x) rgb(x[1]/255,x[2]/255,x[3]/255) )
-      v <- c()
-      for (w in E(gr)$weight%>%as.numeric()) {
-        if (w > 0) {
-          x = col1(w)
-          v <- c(v, rgb(x[1]/255,x[2]/255,x[3]/255))
-        } else {
-          x = col2(-w)
-          v <- c(v, rgb(x[1]/255,x[2]/255,x[3]/255))
-        }
-      }
-      if (!is.null(v)) { # solo si han sobrevivido nodos al filtro.
-        E(gr)$colores <- v
-        
-        # create layout 
-        fr.all <- layout_as_star(gr)
-        fr.all <- layout.fruchterman.reingold(gr)
-        fr.all.df <- as.data.frame(fr.all)
+      # if (!is.null(g$weight)) { # solo si han sobrevivido nodos al filtro.
 
-        # # necesito un pcgcode ordenado
-        # pcgcode= pcgcodemaker(taxa[unique(c(real_corrs[[1]],real_corrs[[2]]))], f_ = T)    # TODO maybe entender como lo hice la otra vez
-        # mylayouts <- list(GroupByPCG1(as.numeric(colorcode)),
-        #             GroupByPCG2(as.numeric(colorcode)))
-        # fr.all.df <- as.data.frame(mylayouts[1])
-        
-    　　# add labels
-        fr.all.df$OTUname <- V(gr)$name
-        
-        # get the edge information using the get.data.frame function
-        g <- get.data.frame(gr)
-        
-        g$from.x <- fr.all.df$V1[match(g$from, fr.all.df$OTUname)]  #  match the from locations from the node data.frame we previously connected
-        g$from.y <- fr.all.df$V2[match(g$from, fr.all.df$OTUname)]
-        g$to.x <- fr.all.df$V1[match(g$to, fr.all.df$OTUname)]  #  match the to locations from the node data.frame we previously connected
-        g$to.y <- fr.all.df$V2[match(g$to, fr.all.df$OTUname)]
-        
-        # get my graph plotted (ideas from: https://chrischizinski.github.io/rstats/igraph-ggplotll/)
-        plot1 <- ggplot() +
-          geom_segment(data=g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y,size=weight),colour=g$colores) +
-          geom_point(data=fr.all.df,aes(x=V1,y=V2),size=21,colour="black") +  # adds a black border around the nodes
-          geom_point(data=fr.all.df,aes(x=V1,y=V2),size=20,colour="lightgrey") +
-          geom_text(data=fr.all.df,aes(x=V1,y=V2,label=OTUname)) + # add the node labels
-          scale_x_continuous(expand=c(0,250))+  # expand the x limits
-          scale_y_continuous(expand=c(0,250))+ # expand the y limits
-          theme_void() + # use the ggplot black and white theme
-          theme(legend.position = "none",
-                panel.background = element_rect(colour = "white", fill = "white")) 
-        
-      } else {
-        # to avoid plotting error                                                # TODO ugly code.
-        g <- setNames(data.frame(matrix(ncol=9)), c("from","to","weight","OTUname","from.x","from.y","to.x","to.y", "colores"))
-        
-        fr.all.df　<- setNames(data.frame(matrix(ncol=3)),c("V1","V2", "OTUname"))
-        
-        plot1 <- ggplot() +
-          geom_segment(data=g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y,size=weight),colour=g$colores) +
-          geom_point(data=fr.all.df,aes(x=V1,y=V2),size=21,colour="black") +  # adds a black border around the nodes
-          geom_point(data=fr.all.df,aes(x=V1,y=V2),size=20,colour="lightgrey") +
-          # geom_text(data=fr.all.df,aes(x=V1,y=V2,label=OTUname)) + # add the node labels
-          # scale_x_continuous(expand=c(0,1))+  # expand the x limits 
-          # scale_y_continuous(expand=c(0,1))+ # expand the y limits
-          theme_void() + # use the ggplot black and white theme
-          theme(legend.position = "none",
-                panel.background = element_rect(colour = "white", fill = "white"))
-      }
+  　　# add labels and PCG colour
+      names(pcgcode) <- taxa %>% renamer(width=6)
+
+      #final layout
+      # mylayouts <- list(
+      #   GroupByPCG1(as.numeric(pcgcode[V(gr)$name])),
+      #   GroupByPCG2(as.numeric(pcgcode[V(gr)$name]))
+      #   )
+      # fr.all.df <- as.data.frame(mylayouts[2]) * 225 # so they are not too together
+      fr.all <- layout.fruchterman.reingold(gr)
+      fr.all <- layout.graphopt(gr) * 35
+      fr.all.df <- as.data.frame(fr.all)
+      names(fr.all.df) <- c("V1", "V2")
+      fr.all.df$PCG <- c("red", "dodgerblue", "goldenrod2")[ pcgcode[V(gr)$name] ]
+      fr.all.df$OTUname <-V(gr)$name
       
-      # Plot the graph by itself
-      ggsave(filename=paste0(outputdir,"/graph_",m,".png"), 
-             plot1 + 
-               facet_grid(. ~ paste0("Correlation network (",m,")")) +
-               theme(strip.background = element_rect(colour="white",fill="white"),
-                     strip.text = element_text(size=15, colour="black")),
-             height = 7, width = 7)
+      # get the edge information using the get.data.frame function
+      g <- get.data.frame(gr)
       
-      # Los dos juntos
-      # ==============
-      bothgg <- ggarrange(
-        plot1, NULL,  plot2,
-        nrow = 1, widths = c(1, -0.2, 1),
-        labels = c(paste0("Correlation network (",m,")"), "", "corrplot with p-values")
-      )
-      ggsave(bothgg, bg = "white",filename = paste0(outputdir,"/corrs_",m,".png"),width = 15, height=9)
-    },
+      g$from.x <- fr.all.df$V1[match(g$from, fr.all.df$OTUname)]  #  match the from locations from the node data.frame we previously connected
+      g$from.y <- fr.all.df$V2[match(g$from, fr.all.df$OTUname)]
+      g$to.x <- fr.all.df$V1[match(g$to, fr.all.df$OTUname)]  #  match the to locations from the node data.frame we previously connected
+      g$to.y <- fr.all.df$V2[match(g$to, fr.all.df$OTUname)]
+      
+      # get my graph plotted (ideas from: https://chrischizinski.github.io/rstats/igraph-ggplotll/)
+      g$weight  <- as.numeric(g$weight)
+      plot1 <-
+        ggplot() +
+        geom_segment(data = g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y, size=weight, colour=weight)) +
+        geom_point(data = fr.all.df, aes(x=V1,y=V2), size=10.5,colour="black") +  # adds a black border around the nodes
+        geom_point(data = fr.all.df, aes(x=V1,y=V2), colour=fr.all.df$PCG,size=10) +
+        geom_label_repel(data = fr.all.df, aes(x=V1,y=V2, label=OTUname),
+                         alpha = 1, size = 3.75) + # now the text
+        geom_label_repel(data = fr.all.df, aes(x=V1,y=V2, label=OTUname), fill=fr.all.df$PCG,
+                         alpha = 0.2, size = 3.75) + # add the node labels
+        scale_x_continuous(expand = c(0,250))+  # expand the x limits
+        scale_y_continuous(expand = c(0,250))+ # expand the y limits
+        scale_color_stepsn(limits = c(-1, +1), n.breaks = 9,
+                           colours = c_scale,#c(c_scale[1],"white",c_scale[9]),
+                           aesthetics = "colour", 
+                           guide = guide_coloursteps(
+                             draw.ulim = T, 
+                             draw.llim = T, 
+                             title = "Weight",
+                             show.limits = T,
+                             ticks = T)
+                           ) +
+        theme_void() + # use the ggplot black and white theme
+        theme(legend.position = "none",
+              panel.background = element_rect(colour = "white", fill = "white")) +
+          guides(size="none")
+  
+    # } else { # TODO ugly code.
+    #   # to avoid plotting error
+    #   g <- setNames(data.frame(matrix(ncol=9)), c("from","to","weight","OTUname","from.x","from.y","to.x","to.y", "colores"))
+    #   
+    #   fr.all.df　<- setNames(data.frame(matrix(ncol=3)),c("V1","V2", "OTUname"))
+    #   
+    #   plot1 <- ggplot() +
+    #     geom_segment(data=g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y,size=weight),colour=weight) +
+    #     geom_point(data=fr.all.df,aes(x=V1,y=V2),size=21,colour="black") +  # adds a black border around the nodes
+    #     geom_point(data=fr.all.df,aes(x=V1,y=V2),size=20,colour="lightgrey") +
+    #     # geom_text(data=fr.all.df,aes(x=V1,y=V2,label=OTUname)) + # add the node labels
+    #     # scale_x_continuous(expand=c(0,1))+  # expand the x limits 
+    #     # scale_y_continuous(expand=c(0,1))+ # expand the y limits
+    #     theme_void() + # use the ggplot black and white theme
+    #     theme(legend.position = "none",
+    #           panel.background = element_rect(colour = "white", fill = "white"))
+    # }
     
-    # Si no hay datos de esa m_inic
-    error=function(cond){
-      message(paste0("Algo fue mal con las muestras del inóculo ",m,", seguramente no hay archivo de simulaciones porque faltaban datos. Mensaje de error:"))
-      message(cond)
-    }
+    # Plot the graph by itself
+    # ========================
+    ggsave(filename=paste0(outputdir,"/graph_",m,".png"), 
+           plot1 + 
+             facet_grid(. ~ paste0("Correlation network (",m,")")) +
+             theme(strip.background = element_rect(colour="white",fill="white"),
+                   legend.background = element_rect(colour="white",fill="white"),
+                   plot.background = element_rect(colour="white",fill="white"),
+                   strip.text = element_text(size=15, colour="black"),
+                   legend.position = "right", legend.key.height = unit(2.5, "cm")),
+           height = 7, width = 7)
+    
+    # Save it for the main graph
+    # ==========================
+    graph_list[[m]] <- plot1
+    
+    # Los dos juntos
+    # ==============
+    bothgg <- ggarrange(
+      plot1 + theme(strip.background = element_rect(colour="white",fill="white"),
+                                strip.text = element_text(size=15, colour="black"),
+                                legend.position = "left"), 
+      NULL,  
+      plot2,
+      nrow = 1, widths = c(1, -0.2, 1),
+      labels = c(paste0("Correlation network (",m,")"), "", "corrplot with p-values")
+    )
+    ggsave(bothgg, bg = "white",filename = paste0(outputdir,"/corrs_",m,".png"),width = 15, height=9)
+  },
+  
+  # Si no hay datos de esa m_inic
+  error=function(cond){
+    message(paste0("Algo fue mal con las muestras del inóculo ",m,", seguramente no hay archivo de simulaciones porque faltaban datos. Mensaje de error:"))
+    message(cond)
+  }
   )
 }
+
+# Plot all graphs together
+# ========================
+title <- ggplot() +
+  geom_text(aes(0,0,label="Correlations (p<0.05) by original sample"),size=8) + 
+  theme_void()
+
+all_plots <- wrap_plots(lapply(names(graph_list)[1:9], 
+                  FUN = function(x) {graph_list[[x]] + 
+                      ggtitle(x) + theme(plot.title = element_textbox_simple(
+                        size = 12,
+                        lineheight = 1,
+                        padding = margin(5.5, 5.5, 5.5, 5.5),
+                        margin = margin(0, 0, 5.5, 0),
+                        fill = "cornsilk"))
+                    }),
+                  guides = "collect") &
+  theme(panel.background = element_rect(colour="white",fill="white"),
+        legend.position = "bottom", 
+        legend.key.width  = unit(4, "cm"),
+        legend.key.height = unit(0.4, "cm"))
   
-  
+all_plots <- wrap_plots(t = title,
+                        A = all_plots, 
+                        design = 
+                        "tttttt
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA
+                        AAAAAA"
+                        ) + theme(plot.margin = unit(c(0,0,1,1),"cm"))
+
+# set.seed(1) # 1 ,5, 9 ; layout anterior
+set.seed(24) # 24 !!!!!!!!!!!
+ggsave(all_plots, 
+       filename = paste0(outputdir,"/ALL_corrs.png"), 
+       width=21/2, height = 29.7/2)
 
 # Esta es la disrtibución. Se parece mucho a las que salen en el doc suplementario.
 # simul_corrs[c,3:n]%>%as.numeric()%>%sort%>%hist()    
