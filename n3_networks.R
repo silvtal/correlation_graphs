@@ -168,8 +168,8 @@ for (m in m_inic) {
       real_corrs <- real_corrs[real_corrs["weight"] != 0,]
       
       # rename real_corrs (for better plotting afterwards)
-      real_corrs[[1]] <- taxa[real_corrs[[1]],] %>% renamer(width=6) %>% gsub(pattern="\\.\\d",replacement = "") 
-      real_corrs[[2]] <- taxa[real_corrs[[2]],] %>% renamer(width=6) %>% gsub(pattern="\\.\\d",replacement = "") 
+      real_corrs[[1]] <- taxa[real_corrs[[1]],] %>% prettyrenamer %>% gsub(pattern="\\.\\d",replacement = "") 
+      real_corrs[[2]] <- taxa[real_corrs[[2]],] %>% prettyrenamer %>% gsub(pattern="\\.\\d",replacement = "") 
 
       # create graph
       gr<-igraph::graph_from_data_frame(real_corrs%>%as.matrix, directed = F) 
@@ -177,7 +177,7 @@ for (m in m_inic) {
       # if (!is.null(g$weight)) { # solo si han sobrevivido nodos al filtro.
 
   　　# add labels and PCG colour
-      names(pcgcode) <- taxa %>% renamer(width=6)
+      names(pcgcode) <- taxa %>% prettyrenamer
 
       #final layout
       # mylayouts <- list(
@@ -204,13 +204,13 @@ for (m in m_inic) {
       g$weight  <- as.numeric(g$weight)
       plot1 <-
         ggplot() +
-        geom_segment(data = g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y, size=weight, colour=weight)) +
+        geom_segment(data = g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y, size=0.5, colour=weight)) +
         geom_point(data = fr.all.df, aes(x=V1,y=V2), size=10.5,colour="black") +  # adds a black border around the nodes
         geom_point(data = fr.all.df, aes(x=V1,y=V2), colour=fr.all.df$PCG,size=10) +
         geom_label_repel(data = fr.all.df, aes(x=V1,y=V2, label=OTUname),
-                         alpha = 1, size = 3.75) + # now the text
+                         alpha = 1, size = 3.75, seed = 1) + # now the text
         geom_label_repel(data = fr.all.df, aes(x=V1,y=V2, label=OTUname), fill=fr.all.df$PCG,
-                         alpha = 0.2, size = 3.75) + # add the node labels
+                         alpha = 0.2, size = 3.75, seed = 1) + # add the node labels
         scale_x_continuous(expand = c(0,250))+  # expand the x limits
         scale_y_continuous(expand = c(0,250))+ # expand the y limits
         scale_color_stepsn(limits = c(-1, +1), n.breaks = 9,
@@ -219,12 +219,13 @@ for (m in m_inic) {
                            guide = guide_coloursteps(
                              draw.ulim = T, 
                              draw.llim = T, 
-                             title = "Weight",
+                             title = "Correlation",
+                             title.vjust = +1,
                              show.limits = T,
                              ticks = T)
                            ) +
         theme_void() + # use the ggplot black and white theme
-        theme(legend.position = "none",
+        theme(legend.position = "none", panel.border = element_rect(size = 1, colour = "#EDC373"),
               panel.background = element_rect(colour = "white", fill = "white")) +
           guides(size="none")
   
@@ -287,8 +288,9 @@ for (m in m_inic) {
 # Plot all graphs together
 # ========================
 title <- ggplot() +
-  geom_text(aes(0,0,label="Correlations (p<0.05) by original sample"),size=8) + 
-  theme_void()
+  geom_text(aes(0, 0, label = "Correlations (p<0.05) by original sample"), 
+            size = 8) + 
+  theme_void() + theme(plot.margin=margin(9,9,9,9))
 
 all_plots <- wrap_plots(lapply(names(graph_list)[1:9], 
                   FUN = function(x) {graph_list[[x]] + 
@@ -296,7 +298,7 @@ all_plots <- wrap_plots(lapply(names(graph_list)[1:9],
                         size = 12,
                         lineheight = 1,
                         padding = margin(5.5, 5.5, 5.5, 5.5),
-                        margin = margin(0, 0, 5.5, 0),
+                        margin = margin(0, 0, 0, 0),
                         fill = "cornsilk"))
                     }),
                   guides = "collect") &
@@ -345,10 +347,8 @@ all_plots <- wrap_plots(t = title,
                         AAAAAA
                         AAAAAA
                         AAAAAA"
-                        ) + theme(plot.margin = unit(c(0,0,1,1),"cm"))
+                        ) + theme(plot.margin = unit(c(0,0,0.2,0),"cm"))
 
-# set.seed(1) # 1 ,5, 9 ; layout anterior
-set.seed(24) # 24 !!!!!!!!!!!
 ggsave(all_plots, 
        filename = paste0(outputdir,"/ALL_corrs.png"), 
        width=21/2, height = 29.7/2)
