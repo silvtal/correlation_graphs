@@ -22,16 +22,13 @@
 
 # Libraries, parameters, wd
 # ==============================================================================
-setwd("/home/silvia/AAA/2021-09-22_gamma_model_networks/")
-
 library("gsubfn") # for unpacking values
-source("/home/silvia/Apps/functions_for_neutral_modelling.R") # source scripts
-source("/home/silvia/Apps/my_functions.R")                    # are in neutral_model
+source("./my_functions.R")
 library("plyr")
 
-exp_f="/home/silvia/AAA/OTU_data/all_transfers_table_glc.txt"
-map_f="/home/silvia/AAA/data/map_glc_ALL.csv"
-simul_input_file = "gamma_model_glc"
+exp_f="./data/all_transfers_table_glc.txt"
+map_f="./data/map_glc_ALL.csv"
+simul_input_file = "n1_results"
 simul_folder = "./gamma_simul_correlations"
 real_folder  = "./gamma_real_correlations"
 

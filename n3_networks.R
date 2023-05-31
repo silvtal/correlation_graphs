@@ -27,11 +27,8 @@
 
 # Libraries, parameters, wd
 # ==============================================================================
-setwd("/home/silvia/AAA/2021-09-22_gamma_model_networks/")
-
 library("gsubfn") # for unpacking values
-source("/home/silvia/Apps/functions_for_neutral_modelling.R")
-source("/home/silvia/Apps/my_functions.R")
+source("./my_functions.R")
 if("tidyverse" %in% (.packages())){
   detach("package:tidyverse", unload=TRUE)
 }
@@ -52,7 +49,7 @@ simul_folder = "./gamma_simul_correlations"
 real_folder  = "./gamma_real_correlations"
 outputdir = "./gamma_model_GRAPHS"
 
-taxaf = "../OTU_data/all_transfers_table_glc.txt"
+taxaf = "./data/all_transfers_table_glc.txt"
 taxa<-get_abundance_and_tax_from_table(taxaf)[[2]] 
 pcgcode <- pcgcodemaker(taxa, f_ = T); names(pcgcode) <- rownames(taxa)
 
@@ -135,7 +132,7 @@ for (m in m_inic) {
       matrix.colors <- getGrob(plot2, gPath("circle"), grep = TRUE)[["gp"]][["fill"]]
       # a few adjustments https://stackoverflow.com/questions/53734543/converting-corrplot-output-to-grob
       # lista: childNames(plot2)
-      plot2 <- editGrob(plot2,gPath = gPath("circle"), grep = TRUE,
+      plot2 <- editGrob(plot2, gPath = gPath("circle"), grep = TRUE,
                         gp = gpar(col = NA,
                                   fill = NA))
       plot2 <- editGrob(plot2,
@@ -146,15 +143,10 @@ for (m in m_inic) {
                      gPath("background"), grep = TRUE,
                      gp = gpar(fill = NA))
       
-      
       # este son las cruces del p value
       plot2 <- editGrob(plot2,
                         gPath("graphics-plot-1-points-1"), grep = TRUE,
                         gp = gpar(fill = NA))
-      
-      # plot2 <- editGrob(plot2,
-      #                   gPath("graphics-plot-1-text-1"), grep = TRUE,
-      #                   gp = gpar(col="",fill = NA))
       
       plot2 <- plot2 %>% as.ggplot()
       
@@ -179,12 +171,6 @@ for (m in m_inic) {
   　　# add labels and PCG colour
       names(pcgcode) <- taxa %>% prettyrenamer
 
-      #final layout
-      # mylayouts <- list(
-      #   GroupByPCG1(as.numeric(pcgcode[V(gr)$name])),
-      #   GroupByPCG2(as.numeric(pcgcode[V(gr)$name]))
-      #   )
-      # fr.all.df <- as.data.frame(mylayouts[2]) * 225 # so they are not too together
       fr.all <- layout.fruchterman.reingold(gr)
       fr.all <- layout.graphopt(gr) * 35
       fr.all.df <- as.data.frame(fr.all)
@@ -229,24 +215,6 @@ for (m in m_inic) {
               panel.background = element_rect(colour = "white", fill = "white")) +
           guides(size="none")
   
-    # } else { # TODO ugly code.
-    #   # to avoid plotting error
-    #   g <- setNames(data.frame(matrix(ncol=9)), c("from","to","weight","OTUname","from.x","from.y","to.x","to.y", "colores"))
-    #   
-    #   fr.all.df　<- setNames(data.frame(matrix(ncol=3)),c("V1","V2", "OTUname"))
-    #   
-    #   plot1 <- ggplot() +
-    #     geom_segment(data=g,aes(x=from.x,xend = to.x, y=from.y,yend = to.y,size=weight),colour=weight) +
-    #     geom_point(data=fr.all.df,aes(x=V1,y=V2),size=21,colour="black") +  # adds a black border around the nodes
-    #     geom_point(data=fr.all.df,aes(x=V1,y=V2),size=20,colour="lightgrey") +
-    #     # geom_text(data=fr.all.df,aes(x=V1,y=V2,label=OTUname)) + # add the node labels
-    #     # scale_x_continuous(expand=c(0,1))+  # expand the x limits 
-    #     # scale_y_continuous(expand=c(0,1))+ # expand the y limits
-    #     theme_void() + # use the ggplot black and white theme
-    #     theme(legend.position = "none",
-    #           panel.background = element_rect(colour = "white", fill = "white"))
-    # }
-    
     # Plot the graph by itself
     # ========================
     ggsave(filename=paste0(outputdir,"/graph_",m,".png"), 
@@ -352,12 +320,3 @@ all_plots <- wrap_plots(t = title,
 ggsave(all_plots, 
        filename = paste0(outputdir,"/ALL_corrs.png"), 
        width=21/2, height = 29.7/2)
-
-# Esta es la disrtibución. Se parece mucho a las que salen en el doc suplementario.
-# simul_corrs[c,3:n]%>%as.numeric()%>%sort%>%hist()    
-# ---> percentil a partir del ecdf
-# ---> mirar mis apuntes de teoria de grafos?
-# ---> mirar su supplementary
-# El problema es que mis p valores son 0 siempre y bueno es porque estoy chequeando una normal. Como chequeo aqui?
-
-# area under the curve to the right of the test statistic z
