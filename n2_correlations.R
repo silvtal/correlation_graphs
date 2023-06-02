@@ -41,6 +41,8 @@ timepoints_S = 1:5  # time points for simulations
 reps = 1:8          # number of replicates (no incluir la 0 !)
 timepoints_R = 8:12 # time points for real data
                     # Nos interesan las comunidades estables
+corr_type = "pearson" # pearson or spearman
+if (corr_type == "pearson") {i="cor"} else {i="rho"}
 only_one_rep = TRUE
 
 
@@ -109,7 +111,7 @@ for (m in names(all_reps)){ # no son todas las m_inic !
     rep_tp <- all_reps[[m]][[as.character(rep)]]
     
     if (nrow(rep_tp) > 1) { # solo puedo sacar pares si hay al menos dos OTUs
-      message("Computing Spearman correlations...")
+      message(paste0("Computing ", tools::toTitleCase(corr_type), " correlations..."))
       pairs = t(combn(colnames(rep_tp),2)) %>% as.data.frame()
       # corrs == list. Dentro de corrs$m$PCG$rep tendremos dos DF, uno con 
       #                p-vals y otro con las corrs en sí. Tienen tantas cols y
@@ -120,15 +122,15 @@ for (m in names(all_reps)){ # no son todas las m_inic !
       corrs[[m]][[rep]]$rep_pvals <- data.frame(row.names = colnames(rep_tp))
       corrs[[m]][[rep]]$rep_corrs <- data.frame(row.names = colnames(rep_tp))
       
-      # Hago Spearman para cada pareja y meto los resultados en las casillas 
+      # Hago correlación para cada pareja y meto los resultados en las casillas 
       # correspondientes de los DFs
       for (row in 1:nrow(pairs)) {
         p=pairs[row,]
-        s=cor.test(rep_tp[,p[[1]]], rep_tp[,p[[2]]], method=c("spearman"))       # spearman is less susceptible to outliers than spearman
+        s=cor.test(rep_tp[,p[[1]]], rep_tp[,p[[2]]], method=c(corr_type))
         corrs[[m]][[rep]]$rep_pvals[p[[1]],p[[2]]] <- s$p.value
         corrs[[m]][[rep]]$rep_pvals[p[[2]],p[[1]]] <- s$p.value
-        corrs[[m]][[rep]]$rep_corrs[p[[1]],p[[2]]] <- s$estimate[["rho"]]
-        corrs[[m]][[rep]]$rep_corrs[p[[2]],p[[1]]] <- s$estimate[["rho"]]
+        corrs[[m]][[rep]]$rep_corrs[p[[1]],p[[2]]] <- s$estimate[[i]]
+        corrs[[m]][[rep]]$rep_corrs[p[[2]],p[[1]]] <- s$estimate[[i]]
       }
       # Order the output...
       A <- corrs[[m]][[rep]]$rep_corrs
@@ -214,7 +216,7 @@ for (m in m_inic){
   }
 }
 
-# Then, for each inter-species pair, we then measured the Spearman correlation 
+# Then, for each inter-species pair, we then measured the correlation 
 # coefficient between their abundance trajectories in each time point
 # - Todos los time points de todas las réplicas (reales) y de todas las simuls,
 #   pero separando a cada réplica/iteración.
@@ -264,16 +266,16 @@ for (m in names(all_reps)){ # no son todas las m_inic                           
       corrs[[m]][[simul]]$simul_pvals <- data.frame(row.names = colnames(g))
       corrs[[m]][[simul]]$simul_corrs <- data.frame(row.names = colnames(g))
       
-      # Hago Spearman para cada pareja y meto los resultados en las casillas 
+      # Hago correlación para cada pareja y meto los resultados en las casillas 
       # correspondientes de los DFs
-      message("Computing Spearman correlations...")
+      message(paste0("Computing ", tools::toTitleCase(corr_type), " correlations..."))
       for (row in rownames(pairs)) {
         p=pairs[row,]
-        s=cor.test(g[,p[[1]]], g[,p[[2]]], method=c("spearman"))
+        s=cor.test(g[,p[[1]]], g[,p[[2]]], method=c(corr_type))
         corrs[[m]][[simul]]$simul_pvals[p[[1]],p[[2]]] <- s$p.value
         corrs[[m]][[simul]]$simul_pvals[p[[2]],p[[1]]] <- s$p.value
-        corrs[[m]][[simul]]$simul_corrs[p[[1]],p[[2]]] <- s$estimate[["rho"]]
-        corrs[[m]][[simul]]$simul_corrs[p[[2]],p[[1]]] <- s$estimate[["rho"]]
+        corrs[[m]][[simul]]$simul_corrs[p[[1]],p[[2]]] <- s$estimate[[i]]
+        corrs[[m]][[simul]]$simul_corrs[p[[2]],p[[1]]] <- s$estimate[[i]]
       }
       # Order the output...
       A <- corrs[[m]][[simul]]$simul_corrs
