@@ -44,6 +44,7 @@ for (m in m_inic){
   }
 }
 
+system("mkdir n1_results")
 # 4. Save data
 for (m in m_inic){
   for (t in 1:timepoints) {

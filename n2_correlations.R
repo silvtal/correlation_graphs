@@ -31,6 +31,7 @@ map_f="./data/map_glc_ALL.csv"
 simul_input_file = "n1_results"
 simul_folder = "./gamma_simul_correlations"
 real_folder  = "./gamma_real_correlations"
+system(paste("mkdir", simul_folder, real_folder))
 
 m_inic = paste0("X",c(1:12))
 
@@ -108,7 +109,7 @@ for (m in names(all_reps)){ # no son todas las m_inic !
     rep_tp <- all_reps[[m]][[as.character(rep)]]
     
     if (nrow(rep_tp) > 1) { # solo puedo sacar pares si hay al menos dos OTUs
-      message("Computing Pearson correlations...")
+      message("Computing Spearman correlations...")
       pairs = t(combn(colnames(rep_tp),2)) %>% as.data.frame()
       # corrs == list. Dentro de corrs$m$PCG$rep tendremos dos DF, uno con 
       #                p-vals y otro con las corrs en sí. Tienen tantas cols y
@@ -119,15 +120,15 @@ for (m in names(all_reps)){ # no son todas las m_inic !
       corrs[[m]][[rep]]$rep_pvals <- data.frame(row.names = colnames(rep_tp))
       corrs[[m]][[rep]]$rep_corrs <- data.frame(row.names = colnames(rep_tp))
       
-      # Hago Pearson para cada pareja y meto los resultados en las casillas 
+      # Hago Spearman para cada pareja y meto los resultados en las casillas 
       # correspondientes de los DFs
       for (row in 1:nrow(pairs)) {
         p=pairs[row,]
-        s=cor.test(rep_tp[,p[[1]]], rep_tp[,p[[2]]], method=c("pearson"))          # quiza no lo mas eficiente pero no importa...
+        s=cor.test(rep_tp[,p[[1]]], rep_tp[,p[[2]]], method=c("spearman"))       # spearman is less susceptible to outliers than spearman
         corrs[[m]][[rep]]$rep_pvals[p[[1]],p[[2]]] <- s$p.value
         corrs[[m]][[rep]]$rep_pvals[p[[2]],p[[1]]] <- s$p.value
-        corrs[[m]][[rep]]$rep_corrs[p[[1]],p[[2]]] <- s$estimate[["cor"]]
-        corrs[[m]][[rep]]$rep_corrs[p[[2]],p[[1]]] <- s$estimate[["cor"]]
+        corrs[[m]][[rep]]$rep_corrs[p[[1]],p[[2]]] <- s$estimate[["rho"]]
+        corrs[[m]][[rep]]$rep_corrs[p[[2]],p[[1]]] <- s$estimate[["rho"]]
       }
       # Order the output...
       A <- corrs[[m]][[rep]]$rep_corrs
@@ -213,7 +214,7 @@ for (m in m_inic){
   }
 }
 
-# Then, for each inter-species pair, we then measured the Pearson correlation 
+# Then, for each inter-species pair, we then measured the Spearman correlation 
 # coefficient between their abundance trajectories in each time point
 # - Todos los time points de todas las réplicas (reales) y de todas las simuls,
 #   pero separando a cada réplica/iteración.
@@ -263,16 +264,16 @@ for (m in names(all_reps)){ # no son todas las m_inic                           
       corrs[[m]][[simul]]$simul_pvals <- data.frame(row.names = colnames(g))
       corrs[[m]][[simul]]$simul_corrs <- data.frame(row.names = colnames(g))
       
-      # Hago Pearson para cada pareja y meto los resultados en las casillas 
+      # Hago Spearman para cada pareja y meto los resultados en las casillas 
       # correspondientes de los DFs
-      message("Computing Pearson correlations...")
+      message("Computing Spearman correlations...")
       for (row in rownames(pairs)) {
         p=pairs[row,]
-        s=cor.test(g[,p[[1]]], g[,p[[2]]], method=c("pearson"))
+        s=cor.test(g[,p[[1]]], g[,p[[2]]], method=c("spearman"))
         corrs[[m]][[simul]]$simul_pvals[p[[1]],p[[2]]] <- s$p.value
         corrs[[m]][[simul]]$simul_pvals[p[[2]],p[[1]]] <- s$p.value
-        corrs[[m]][[simul]]$simul_corrs[p[[1]],p[[2]]] <- s$estimate[["cor"]]
-        corrs[[m]][[simul]]$simul_corrs[p[[2]],p[[1]]] <- s$estimate[["cor"]]
+        corrs[[m]][[simul]]$simul_corrs[p[[1]],p[[2]]] <- s$estimate[["rho"]]
+        corrs[[m]][[simul]]$simul_corrs[p[[2]],p[[1]]] <- s$estimate[["rho"]]
       }
       # Order the output...
       A <- corrs[[m]][[simul]]$simul_corrs

@@ -1,3 +1,5 @@
+# When running this from RStudio it's important to make space for the plot window
+#
 # The "real correlations" here are the means of the correlations obtained
 # from a selection of replicates+timesteps. We selected only those replicates
 # which had the last five transfers (=stable community). For each replicate,
@@ -48,10 +50,18 @@ library("ggrepel")
 simul_folder = "./gamma_simul_correlations"
 real_folder  = "./gamma_real_correlations"
 outputdir = "./gamma_model_GRAPHS"
+if (!file.exists(outputdir)){system(paste("mkdir", outputdir))}
 
+# Abundance table
 taxaf = "./data/all_transfers_table_glc.txt"
-taxa<-get_abundance_and_tax_from_table(taxaf)[[2]] 
-pcgcode <- pcgcodemaker(taxa, f_ = T); names(pcgcode) <- rownames(taxa)
+taxa <- get_abundance_and_tax_from_table(taxaf)[[2]]
+
+# PCG table to classify the OTUs correctly
+pcg_table <- read.csv("./data/core_to_leaves.txt", sep ="\t")[c("Core", "Leaves")]
+otu_to_core <- pcg_table %>% separate_rows(Leaves, sep = ";") %>% as.data.frame()
+rownames(otu_to_core) <- otu_to_core$Leaves
+
+pcgcode <- otu_to_core[rownames(taxa), ]$Core %>% as.factor
 
 m_inic = paste0("X",1:12) # irá probando· Si no hay para esa muestra inicial, 
                           # se dará cuenta. Lo mismo para las réplicas           # fixed 11 oct 
@@ -171,7 +181,7 @@ for (m in m_inic) {
   　　# add labels and PCG colour
       names(pcgcode) <- taxa %>% prettyrenamer
 
-      fr.all <- layout.fruchterman.reingold(gr)
+      # fr.all <- layout.fruchterman.reingold(gr) # TODO
       fr.all <- layout.graphopt(gr) * 35
       fr.all.df <- as.data.frame(fr.all)
       names(fr.all.df) <- c("V1", "V2")
@@ -211,7 +221,7 @@ for (m in m_inic) {
                              ticks = T)
                            ) +
         theme_void() + # use the ggplot black and white theme
-        theme(legend.position = "none", panel.border = element_rect(size = 1, colour = "#EDC373"),
+        theme(legend.position = "none",# panel.border = element_rect(size = 1, colour = "#EDC373"), # TODO I need to comment this out if I want to see something. Do not know why.
               panel.background = element_rect(colour = "white", fill = "white")) +
           guides(size="none")
   
